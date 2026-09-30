@@ -557,457 +557,93 @@ document.querySelectorAll("[data-close]").forEach(button => {
 });
 
 // Device status
-// ============================================================
-// ESP32 DEVICE STATUS
-// ============================================================
-
 let lastDeviceStatus = null;
-let deviceTimer = null;
 
 async function checkDeviceStatus() {
-
-    const url =
-        STATUS_URL +
-        "&t=" +
-        Date.now();
-
-    console.log("[JARVIS] Checking ESP32:", url);
-
     try {
-
-        const response = await fetch(url, {
-            method: "GET",
+        const response = await fetch(STATUS_URL + "&t=" + Date.now(), {
             cache: "no-store",
-            headers: {
-                "Cache-Control": "no-cache",
-                "Pragma": "no-cache"
-            }
+            headers: { "Cache-Control": "no-cache" }
         });
 
-        console.log(
-            "[JARVIS] ESP32 HTTP status:",
-            response.status
-        );
-
-        if (!response.ok) {
-            throw new Error(
-                "HTTP " + response.status
-            );
-        }
+        if (!response.ok) throw new Error("HTTP " + response.status);
 
         const data = await response.json();
 
-        console.log(
-            "[JARVIS] ESP32 status received:",
-            data
-        );
-
-        // ====================================================
-        // WORKER IS THE SOURCE OF TRUTH
-        // ====================================================
-
+        // Worker returns {online:false} when no heartbeat exists.
+        // A real device status must explicitly contain online:true.
         if (
             data &&
-            data.online === true
+            data.device === DEVICE_ID &&
+            data.online === true &&
+            Number(data.last_seen) > 0
         ) {
+            const age = Date.now() - Number(data.last_seen);
 
-            lastDeviceStatus = data;
-
-            setDeviceOnline(data);
-
-            return;
+            // Worker KV heartbeat expires after 120 seconds.
+            if (age >= 0 && age < 120000) {
+                lastDeviceStatus = data;
+                setDeviceOnline(data);
+                return;
+            }
         }
-
-        // ====================================================
-        // DEVICE OFFLINE
-        // ====================================================
 
         lastDeviceStatus = null;
-
         setDeviceOffline();
 
-    }
-    catch (error) {
-
-        console.error(
-            "[JARVIS] ESP32 status error:",
-            error
-        );
-
-        /*
-         * Do NOT immediately change ONLINE -> OFFLINE
-         * because of a temporary browser/network failure.
-         *
-         * If we have already received a valid ONLINE state,
-         * keep showing it until the Worker explicitly says
-         * offline.
-         */
-
-        if (!lastDeviceStatus) {
-            setDeviceOffline();
-        }
+    } catch (error) {
+        console.warn("ESP32 status check failed:", error);
+        // Keep the previous state during a temporary network failure.
+        // A successful poll will correct it.
     }
 }
-
-
-// ============================================================
-// ESP32 ONLINE
-// ============================================================
 
 function setDeviceOnline(data) {
-
-    console.log(
-        "[JARVIS] Setting ESP32 ONLINE",
-        data
-    );
-
-    // Top status dot
-    if (deviceDot) {
-        deviceDot.classList.remove("offline");
-    }
-
-    // Sidebar dot
-    if (sideDeviceDot) {
-        sideDeviceDot.classList.remove("offline");
-    }
-
-    // Top text
-    if (deviceStatus) {
-        deviceStatus.textContent =
-            "ESP32 ONLINE";
-    }
-
-    // Device panel
-    const panelStatus =
-        document.getElementById(
-            "devicePanelStatus"
-        );
-
-    const panelSub =
-        document.getElementById(
-            "devicePanelSub"
-        );
-
-    const deviceIcon =
-        document.getElementById(
-            "deviceIcon"
-        );
-
-    const deviceIP =
-        document.getElementById(
-            "deviceIP"
-        );
-
-    const deviceRSSI =
-        document.getElementById(
-            "deviceRSSI"
-        );
-
-    const deviceLastSeen =
-        document.getElementById(
-            "deviceLastSeen"
-        );
-
-    const devicePill =
-        document.getElementById(
-            "devicePill"
-        );
-
-
-    if (panelStatus) {
-        panelStatus.textContent =
-            "Online";
-    }
-
-    if (panelSub) {
-        panelSub.textContent =
-            "Connected to JARVIS";
-    }
-
-    if (deviceIcon) {
-        deviceIcon.classList.add(
-            "online"
-        );
-    }
-
-    if (deviceIP) {
-
-        deviceIP.textContent =
-            data.ip ||
-            "Connected";
-    }
-
-    if (deviceRSSI) {
-
-        if (
-            data.rssi !== undefined &&
-            data.rssi !== null
-        ) {
-
-            deviceRSSI.textContent =
-                data.rssi + " dBm";
-
-        } else {
-
-            deviceRSSI.textContent =
-                "—";
-        }
-    }
-
-
-    // --------------------------------------------------------
-    // LAST HEARTBEAT
-    // --------------------------------------------------------
-
-    if (deviceLastSeen) {
-
-        if (
-            data.last_seen !== undefined &&
-            data.last_seen !== null
-        ) {
-
-            const timestamp =
-                Number(data.last_seen);
-
-            if (
-                Number.isFinite(timestamp) &&
-                timestamp > 0
-            ) {
-
-                deviceLastSeen.textContent =
-                    new Date(
-                        timestamp
-                    ).toLocaleTimeString();
-
-            } else {
-
-                deviceLastSeen.textContent =
-                    "Just now";
-            }
-
-        } else {
-
-            deviceLastSeen.textContent =
-                "Connected";
-        }
-    }
-
-
-    if (devicePill) {
-
-        devicePill.title =
-            "Device: " +
-            DEVICE_ID;
-    }
+    deviceDot.classList.remove("offline");
+    sideDeviceDot.classList.remove("offline");
+    deviceStatus.textContent = "ESP32 ONLINE";
+    document.getElementById("devicePanelStatus").textContent = "Online";
+    document.getElementById("devicePanelSub").textContent = "Connected to JARVIS";
+    document.getElementById("deviceIcon").classList.add("online");
+    document.getElementById("deviceIP").textContent = data.ip || "—";
+    document.getElementById("deviceRSSI").textContent = data.rssi !== undefined ? data.rssi + " dBm" : "—";
+    const seen = Number(data.last_seen);
+    document.getElementById("deviceLastSeen").textContent = seen > 0
+        ? new Date(seen).toLocaleTimeString()
+        : "Just now";
+    document.getElementById("devicePill").title = DEVICE_ID;
 }
-
-
-// ============================================================
-// ESP32 OFFLINE
-// ============================================================
 
 function setDeviceOffline() {
-
-    console.log(
-        "[JARVIS] Setting ESP32 OFFLINE"
-    );
-
-    if (deviceDot) {
-
-        deviceDot.classList.add(
-            "offline"
-        );
-    }
-
-    if (sideDeviceDot) {
-
-        sideDeviceDot.classList.add(
-            "offline"
-        );
-    }
-
-    if (deviceStatus) {
-
-        deviceStatus.textContent =
-            "ESP32 OFFLINE";
-    }
-
-
-    const panelStatus =
-        document.getElementById(
-            "devicePanelStatus"
-        );
-
-    const panelSub =
-        document.getElementById(
-            "devicePanelSub"
-        );
-
-    const deviceIcon =
-        document.getElementById(
-            "deviceIcon"
-        );
-
-    const deviceIP =
-        document.getElementById(
-            "deviceIP"
-        );
-
-    const deviceRSSI =
-        document.getElementById(
-            "deviceRSSI"
-        );
-
-    const deviceLastSeen =
-        document.getElementById(
-            "deviceLastSeen"
-        );
-
-
-    if (panelStatus) {
-
-        panelStatus.textContent =
-            "Offline";
-    }
-
-    if (panelSub) {
-
-        panelSub.textContent =
-            "Waiting for device";
-    }
-
-    if (deviceIcon) {
-
-        deviceIcon.classList.remove(
-            "online"
-        );
-    }
-
-    if (deviceIP) {
-
-        deviceIP.textContent =
-            "—";
-    }
-
-    if (deviceRSSI) {
-
-        deviceRSSI.textContent =
-            "—";
-    }
-
-    if (deviceLastSeen) {
-
-        deviceLastSeen.textContent =
-            "—";
-    }
+    deviceDot.classList.add("offline");
+    sideDeviceDot.classList.add("offline");
+    deviceStatus.textContent = "ESP32 OFFLINE";
+    document.getElementById("devicePanelStatus").textContent = "Offline";
+    document.getElementById("devicePanelSub").textContent = "Waiting for device";
+    document.getElementById("deviceIcon").classList.remove("online");
+    document.getElementById("deviceIP").textContent = "—";
+    document.getElementById("deviceRSSI").textContent = "—";
+    document.getElementById("deviceLastSeen").textContent = "—";
 }
-
-
-// ============================================================
-// START DEVICE POLLING
-// ============================================================
 
 function startDevicePolling() {
-
-    if (deviceTimer) {
-
-        clearInterval(
-            deviceTimer
-        );
-
-        deviceTimer = null;
-    }
-
-    // Check immediately
+    if (deviceTimer) clearInterval(deviceTimer);
     checkDeviceStatus();
-
-    // Continue checking every 15 seconds
-    if (getSettings().autoDevice) {
-
-        deviceTimer = setInterval(
-            () => {
-
-                if (
-                    document.visibilityState ===
-                    "visible"
-                ) {
-
-                    checkDeviceStatus();
-                }
-
-            },
-            15000
-        );
-    }
+    if (getSettings().autoDevice) deviceTimer = setInterval(() => {
+        if (document.visibilityState === "visible") checkDeviceStatus();
+    }, 15000);
 }
 
-
-// ============================================================
-// DEVICE PANEL BUTTONS
-// ============================================================
-
-document
-    .getElementById("deviceBtn")
-    .addEventListener(
-        "click",
-        () => {
-
-            document
-                .getElementById(
-                    "devicePanel"
-                )
-                .classList.add("open");
-
-            checkDeviceStatus();
-        }
-    );
-
-
-document
-    .getElementById("devicePill")
-    .addEventListener(
-        "click",
-        () => {
-
-            document
-                .getElementById(
-                    "devicePanel"
-                )
-                .classList.add("open");
-
-            checkDeviceStatus();
-        }
-    );
-
-
-document
-    .getElementById("closeDevice")
-    .addEventListener(
-        "click",
-        () => {
-
-            document
-                .getElementById(
-                    "devicePanel"
-                )
-                .classList.remove("open");
-        }
-    );
-
-
-document
-    .getElementById("deviceBack")
-    .addEventListener(
-        "click",
-        () => {
-
-            document
-                .getElementById(
-                    "devicePanel"
-                )
-                .classList.remove("open");
-        }
-    );
+document.getElementById("deviceBtn").addEventListener("click", () => {
+    document.getElementById("devicePanel").classList.add("open");
+    checkDeviceStatus();
+});
+document.getElementById("devicePill").addEventListener("click", () => {
+    document.getElementById("devicePanel").classList.add("open");
+    checkDeviceStatus();
+});
+document.getElementById("closeDevice").addEventListener("click", () => document.getElementById("devicePanel").classList.remove("open"));
+document.getElementById("deviceBack").addEventListener("click", () => document.getElementById("devicePanel").classList.remove("open"));
 
 // Mobile
  document.getElementById("openSidebar").addEventListener("click", () => {
