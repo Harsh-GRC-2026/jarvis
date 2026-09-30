@@ -9,6 +9,7 @@ const DEVICE_ID = "JARVIS-ESP32-01";
 
 const TOKEN_KEY = "jarvis_session_token";
 const SETTINGS_KEY = "jarvis_settings_v3";
+const USER_KEY = "jarvis_user_v4";
 
 let currentUser = null;
 let conversations = [];
@@ -41,8 +42,23 @@ function getToken() {
 }
 
 function setToken(token) {
-    if (token) localStorage.setItem(TOKEN_KEY, token);
-    else localStorage.removeItem(TOKEN_KEY);
+    if (token) {
+        localStorage.setItem(TOKEN_KEY, token);
+    } else {
+        localStorage.removeItem(TOKEN_KEY);
+        localStorage.removeItem(USER_KEY);
+    }
+}
+
+function cacheUser(user) {
+    currentUser = user || null;
+    if (user) localStorage.setItem(USER_KEY, JSON.stringify(user));
+    else localStorage.removeItem(USER_KEY);
+}
+
+function getCachedUser() {
+    try { return JSON.parse(localStorage.getItem(USER_KEY) || "null"); }
+    catch { return null; }
 }
 
 function authHeaders(json = false) {
@@ -139,7 +155,7 @@ async function login() {
             body: JSON.stringify({ email, password })
         });
         setToken(data.token);
-        currentUser = data.user;
+        cacheUser(data.user);
         hideAuth();
         await loadAccount();
     } catch (error) {
@@ -179,7 +195,7 @@ async function register() {
             body: JSON.stringify({ name, email, password })
         });
         setToken(data.token);
-        currentUser = data.user;
+        cacheUser(data.user);
         hideAuth();
         await loadAccount();
     } catch (error) {
@@ -195,7 +211,7 @@ async function logout() {
     } catch {}
 
     setToken(null);
-    currentUser = null;
+    cacheUser(null);
     conversations = [];
     currentConversationId = null;
     renderConversationList();
@@ -209,31 +225,48 @@ async function logout() {
 // ------------------------------------------------------------
 
 async function loadAccount() {
-    if (!getToken()) {
+    const token = getToken();
+    if (!token) {
+        currentUser = null;
         showAuth("login");
-        return;
+        return false;
     }
+
+    // Restore the cached profile immediately so refresh does not flash the login screen.
+    currentUser = getCachedUser();
+    updateProfileUI();
 
     try {
         const me = await api("/auth/me");
-        currentUser = me.user;
+        cacheUser(me.user);
         updateProfileUI();
 
+        // Load the list first; do not block the UI by opening a conversation automatically.
         const data = await api("/conversations");
         conversations = data.conversations || [];
         currentConversationId = conversations[0]?.id || null;
-
         renderConversationList();
-        if (currentConversationId) await openConversation(currentConversationId);
-        else renderCurrentConversation();
+
+        if (currentConversationId) {
+            // Load the first conversation after the shell is already rendered.
+            requestAnimationFrame(() => openConversation(currentConversationId));
+        } else {
+            renderCurrentConversation();
+        }
+        return true;
     } catch (error) {
+        // Only invalidate the session when the server explicitly rejects it.
         if (error.status === 401) {
             setToken(null);
             currentUser = null;
             showAuth("login", "Your session expired. Please sign in again.");
-        } else {
-            console.error(error);
+            return false;
         }
+        console.warn("Account restore failed temporarily:", error);
+        // Keep the cached account visible during transient network errors.
+        renderConversationList();
+        renderCurrentConversation();
+        return true;
     }
 }
 
@@ -530,7 +563,11 @@ async function checkDeviceStatus() {
         if (!response.ok) throw new Error();
         const data = await response.json();
         data.online ? setDeviceOnline(data) : setDeviceOffline();
-    } catch { setDeviceOffline(); }
+    } catch (error) {
+        console.warn("ESP32 status check failed:", error);
+        // Do not instantly flip a known-online device to offline because of one
+        // transient network/KV read failure. The next poll will correct it.
+    }
 }
 
 function setDeviceOnline(data) {
@@ -561,7 +598,9 @@ function setDeviceOffline() {
 function startDevicePolling() {
     if (deviceTimer) clearInterval(deviceTimer);
     checkDeviceStatus();
-    if (getSettings().autoDevice) deviceTimer = setInterval(checkDeviceStatus, 5000);
+    if (getSettings().autoDevice) deviceTimer = setInterval(() => {
+        if (document.visibilityState === "visible") checkDeviceStatus();
+    }, 10000);
 }
 
 document.getElementById("deviceBtn").addEventListener("click", () => {
@@ -611,15 +650,21 @@ if (SpeechRecognition) {
 async function init() {
     updateProfileUI();
     loadSettingsUI();
-    startDevicePolling();
 
+    // Render immediately. Network work happens afterward.
     if (getToken()) {
-        await loadAccount();
+        currentUser = getCachedUser();
+        updateProfileUI();
+        renderConversationList();
+        renderCurrentConversation();
+        loadAccount();
     } else {
         renderConversationList();
         renderCurrentConversation();
         showAuth("login");
     }
+
+    startDevicePolling();
     input.focus();
 }
 

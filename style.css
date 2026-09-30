@@ -1175,3 +1175,36 @@ button {
 .auth-modal {
     max-width: 440px;
 }
+
+/* ============================================================
+   JARVIS V4 PERFORMANCE MODE
+   Keeps the futuristic look while removing expensive effects.
+   ============================================================ */
+html {
+    scroll-behavior: auto;
+}
+
+/* GPU-heavy blur is unnecessary for the UI and can make low/mid-range
+   machines feel sluggish. */
+.modal-backdrop,
+.glass,
+.device-panel,
+.sidebar {
+    backdrop-filter: none !important;
+}
+
+/* Static rings are much cheaper than continuous full-screen animation. */
+.orb-ring,
+.ring-two {
+    animation: none !important;
+}
+
+/* Respect reduced-motion preference automatically. */
+@media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+        animation-duration: 0.001ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.001ms !important;
+        scroll-behavior: auto !important;
+    }
+}
