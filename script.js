@@ -557,16 +557,44 @@ document.querySelectorAll("[data-close]").forEach(button => {
 });
 
 // Device status
+let lastDeviceStatus = null;
+
 async function checkDeviceStatus() {
     try {
-        const response = await fetch(STATUS_URL + "&t=" + Date.now(), { cache: "no-store" });
-        if (!response.ok) throw new Error();
+        const response = await fetch(STATUS_URL + "&t=" + Date.now(), {
+            cache: "no-store",
+            headers: { "Cache-Control": "no-cache" }
+        });
+
+        if (!response.ok) throw new Error("HTTP " + response.status);
+
         const data = await response.json();
-        data.online !== false ? setDeviceOnline(data) : setDeviceOffline();
+
+        // Worker returns {online:false} when no heartbeat exists.
+        // A real device status must explicitly contain online:true.
+        if (
+            data &&
+            data.device === DEVICE_ID &&
+            data.online === true &&
+            Number(data.last_seen) > 0
+        ) {
+            const age = Date.now() - Number(data.last_seen);
+
+            // Worker KV heartbeat expires after 120 seconds.
+            if (age >= 0 && age < 120000) {
+                lastDeviceStatus = data;
+                setDeviceOnline(data);
+                return;
+            }
+        }
+
+        lastDeviceStatus = null;
+        setDeviceOffline();
+
     } catch (error) {
         console.warn("ESP32 status check failed:", error);
-        // Do not instantly flip a known-online device to offline because of one
-        // transient network/KV read failure. The next poll will correct it.
+        // Keep the previous state during a temporary network failure.
+        // A successful poll will correct it.
     }
 }
 
@@ -579,7 +607,10 @@ function setDeviceOnline(data) {
     document.getElementById("deviceIcon").classList.add("online");
     document.getElementById("deviceIP").textContent = data.ip || "—";
     document.getElementById("deviceRSSI").textContent = data.rssi !== undefined ? data.rssi + " dBm" : "—";
-    document.getElementById("deviceLastSeen").textContent = new Date().toLocaleTimeString();
+    const seen = Number(data.last_seen);
+    document.getElementById("deviceLastSeen").textContent = seen > 0
+        ? new Date(seen).toLocaleTimeString()
+        : "Just now";
     document.getElementById("devicePill").title = DEVICE_ID;
 }
 
