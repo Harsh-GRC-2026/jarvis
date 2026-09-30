@@ -562,7 +562,7 @@ async function checkDeviceStatus() {
         const response = await fetch(STATUS_URL + "&t=" + Date.now(), { cache: "no-store" });
         if (!response.ok) throw new Error();
         const data = await response.json();
-        data.online ? setDeviceOnline(data) : setDeviceOffline();
+        data.online !== false ? setDeviceOnline(data) : setDeviceOffline();
     } catch (error) {
         console.warn("ESP32 status check failed:", error);
         // Do not instantly flip a known-online device to offline because of one
@@ -600,7 +600,7 @@ function startDevicePolling() {
     checkDeviceStatus();
     if (getSettings().autoDevice) deviceTimer = setInterval(() => {
         if (document.visibilityState === "visible") checkDeviceStatus();
-    }, 10000);
+    }, 15000);
 }
 
 document.getElementById("deviceBtn").addEventListener("click", () => {
@@ -612,6 +612,7 @@ document.getElementById("devicePill").addEventListener("click", () => {
     checkDeviceStatus();
 });
 document.getElementById("closeDevice").addEventListener("click", () => document.getElementById("devicePanel").classList.remove("open"));
+document.getElementById("deviceBack").addEventListener("click", () => document.getElementById("devicePanel").classList.remove("open"));
 
 // Mobile
  document.getElementById("openSidebar").addEventListener("click", () => {
@@ -624,6 +625,23 @@ function closeSidebarMobile() {
     sidebar.classList.remove("open");
     sidebarOverlay.classList.remove("open");
 }
+
+// Universal escape/back behavior
+document.addEventListener("keydown", event => {
+    if (event.key !== "Escape") return;
+    closeSidebarMobile();
+    document.getElementById("devicePanel").classList.remove("open");
+    if (profileModal) profileModal.classList.remove("open");
+    if (settingsModal) settingsModal.classList.remove("open");
+});
+
+// Browser back closes an open overlay/panel before leaving the page.
+window.addEventListener("popstate", () => {
+    closeSidebarMobile();
+    document.getElementById("devicePanel").classList.remove("open");
+    if (profileModal) profileModal.classList.remove("open");
+    if (settingsModal) settingsModal.classList.remove("open");
+});
 
 // Voice
 const micBtn = document.getElementById("micBtn");
@@ -646,6 +664,10 @@ if (SpeechRecognition) {
 } else {
     micBtn.style.display = "none";
 }
+
+document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "visible") checkDeviceStatus();
+});
 
 async function init() {
     updateProfileUI();
