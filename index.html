@@ -3,47 +3,296 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>JARVIS AI</title>
+    <meta name="theme-color" content="#071016">
+    <title>JARVIS — Personal AI</title>
     <link rel="stylesheet" href="style.css">
 </head>
 
 <body>
+<div class="app-shell">
 
-<div class="app">
-
-    <header>
-        <div class="logo">J.A.R.V.I.S</div>
-        <div class="status">
-            <span class="dot"></span>
-            ONLINE
+    <!-- Sidebar -->
+    <aside class="sidebar" id="sidebar">
+        <div class="brand">
+            <div class="brand-mark">J</div>
+            <div>
+                <div class="brand-name">J.A.R.V.I.S</div>
+                <div class="brand-sub">PERSONAL AI SYSTEM</div>
+            </div>
+            <button class="icon-btn mobile-close" id="closeSidebar" aria-label="Close menu">×</button>
         </div>
-    </header>
 
-    <main id="chat">
-        <div class="message jarvis">
-            <div class="name">JARVIS</div>
-            <div class="bubble">
-                Good evening. JARVIS systems are online.
+        <button class="new-chat" id="newChat">
+            <span>＋</span> New conversation
+        </button>
+
+        <div class="sidebar-label">CONVERSATIONS</div>
+        <div class="conversation-list" id="conversationList"></div>
+
+        <div class="sidebar-bottom">
+            <button class="sidebar-item" id="deviceBtn">
+                <span>◉</span> ESP32 Device
+                <span class="mini-dot offline" id="sideDeviceDot"></span>
+            </button>
+            <button class="sidebar-item" id="settingsBtn">
+                <span>⚙</span> Settings
+            </button>
+            <button class="sidebar-item profile-mini" id="profileBtn">
+                <span class="avatar" id="sidebarAvatar">G</span>
+                <span class="profile-mini-text">
+                    <strong id="sidebarName">Guest</strong>
+                    <small id="sidebarEmail">Local session</small>
+                </span>
+                <span>›</span>
+            </button>
+        </div>
+    </aside>
+
+    <div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+    <!-- Main -->
+    <section class="main-panel">
+
+        <header class="topbar">
+            <button class="icon-btn menu-btn" id="openSidebar" aria-label="Open menu">☰</button>
+
+            <div class="system-title">
+                <div class="system-title-main">JARVIS</div>
+                <div class="system-title-sub">INTELLIGENCE CORE</div>
+            </div>
+
+            <div class="topbar-right">
+                <div class="connection-pill">
+                    <span class="status-dot" id="aiDot"></span>
+                    <span id="aiStatus">AI READY</span>
+                </div>
+
+                <div class="device-pill" id="devicePill">
+                    <span class="status-dot offline" id="deviceDot"></span>
+                    <span id="deviceStatus">ESP32 OFFLINE</span>
+                </div>
+
+                <button class="avatar top-avatar" id="topProfile" aria-label="Profile">
+                    G
+                </button>
+            </div>
+        </header>
+
+        <!-- Chat -->
+        <main class="chat-area" id="chatArea">
+            <div class="welcome" id="welcome">
+                <div class="orb-wrap">
+                    <div class="orb">
+                        <div class="orb-core">J</div>
+                    </div>
+                    <div class="orb-ring ring-one"></div>
+                    <div class="orb-ring ring-two"></div>
+                </div>
+
+                <div class="welcome-kicker">SYSTEM ONLINE</div>
+                <h1>Good evening.</h1>
+                <p>I'm JARVIS. Ask me anything or give me a command.</p>
+
+                <div class="quick-grid">
+                    <button class="quick-card" data-prompt="What can you help me with?">
+                        <span>✦</span>
+                        <strong>Explore capabilities</strong>
+                        <small>See what JARVIS can do</small>
+                    </button>
+                    <button class="quick-card" data-prompt="Turn on the LED">
+                        <span>◉</span>
+                        <strong>Test ESP32</strong>
+                        <small>Turn on the device LED</small>
+                    </button>
+                    <button class="quick-card" data-prompt="What is the current ESP32 status?">
+                        <span>⌁</span>
+                        <strong>Device status</strong>
+                        <small>Check your ESP32</small>
+                    </button>
+                    <button class="quick-card" data-prompt="Give me a useful engineering idea for today.">
+                        <span>⌬</span>
+                        <strong>Engineering idea</strong>
+                        <small>Start something useful</small>
+                    </button>
+                </div>
+            </div>
+
+            <div class="messages" id="chat"></div>
+        </main>
+
+        <!-- Composer -->
+        <section class="composer-section">
+            <div class="quick-actions">
+                <button data-prompt="Turn on the LED">LED ON</button>
+                <button data-prompt="Turn off the LED">LED OFF</button>
+                <button data-prompt="What is the current ESP32 status?">STATUS</button>
+                <button data-prompt="Stop everything">STOP</button>
+            </div>
+
+            <div class="composer">
+                <button class="composer-btn mic-btn" id="micBtn" title="Voice input">⌕</button>
+                <textarea id="prompt" rows="1" placeholder="Message JARVIS..." autocomplete="off"></textarea>
+                <div class="composer-right">
+                    <span class="shortcut">ENTER</span>
+                    <button class="send-btn" id="send" title="Send">➤</button>
+                </div>
+            </div>
+
+            <div class="composer-note">
+                JARVIS may make mistakes. Verify important information.
+            </div>
+        </section>
+    </section>
+
+    <!-- Right device panel -->
+    <aside class="device-panel" id="devicePanel">
+        <div class="panel-header">
+            <div>
+                <span class="eyebrow">HARDWARE</span>
+                <h2>ESP32 Device</h2>
+            </div>
+            <button class="icon-btn" id="closeDevice">×</button>
+        </div>
+
+        <div class="device-hero">
+            <div class="device-status-icon" id="deviceIcon">◉</div>
+            <div>
+                <strong id="devicePanelStatus">Offline</strong>
+                <span id="devicePanelSub">Waiting for device</span>
             </div>
         </div>
-    </main>
 
-    <div class="input-area">
+        <div class="data-card">
+            <div class="data-row"><span>Device ID</span><strong>JARVIS-ESP32-01</strong></div>
+            <div class="data-row"><span>IP address</span><strong id="deviceIP">—</strong></div>
+            <div class="data-row"><span>Wi-Fi signal</span><strong id="deviceRSSI">—</strong></div>
+            <div class="data-row"><span>Last update</span><strong id="deviceLastSeen">—</strong></div>
+        </div>
 
-        <input
-            type="text"
-            id="prompt"
-            placeholder="Ask JARVIS anything..."
-            autocomplete="off"
-        >
+        <div class="panel-section">
+            <span class="eyebrow">QUICK CONTROL</span>
+            <div class="device-actions">
+                <button data-prompt="Turn on the LED">LED ON</button>
+                <button data-prompt="Turn off the LED">LED OFF</button>
+                <button data-prompt="Blink the LED">BLINK</button>
+                <button data-prompt="What is the current ESP32 status?">REFRESH</button>
+            </div>
+        </div>
 
-        <button id="send">SEND</button>
-
-    </div>
+        <div class="panel-section">
+            <span class="eyebrow">ARCHITECTURE</span>
+            <div class="architecture">
+                <div>GitHub UI <span>→</span></div>
+                <div>Cloudflare Worker <span>→</span></div>
+                <div>Workers AI / KV <span>→</span></div>
+                <div>ESP32 <span>●</span></div>
+            </div>
+        </div>
+    </aside>
 
 </div>
 
-<script src="script.js"></script>
+<!-- Authentication modal -->
+<div class="modal-backdrop" id="authModal">
+    <div class="modal auth-modal">
+        <div class="modal-icon">J</div>
+        <span class="eyebrow">JARVIS IDENTITY</span>
+        <h2 id="authTitle">Welcome back</h2>
+        <p class="modal-description" id="authSubtitle">Sign in to access your saved conversations and profile.</p>
 
+        <div class="auth-tabs">
+            <button class="auth-tab active" id="loginTab">Login</button>
+            <button class="auth-tab" id="registerTab">Register</button>
+        </div>
+
+        <div id="loginForm">
+            <label>Email</label>
+            <input id="loginEmail" type="email" autocomplete="email" placeholder="you@example.com">
+            <label>Password</label>
+            <input id="loginPassword" type="password" autocomplete="current-password" placeholder="Your password">
+            <button class="primary-btn auth-submit" id="loginSubmit">Login to JARVIS</button>
+        </div>
+
+        <div id="registerForm" style="display:none">
+            <label>Name</label>
+            <input id="registerName" type="text" maxlength="40" autocomplete="name" placeholder="Your name">
+            <label>Email</label>
+            <input id="registerEmail" type="email" autocomplete="email" placeholder="you@example.com">
+            <label>Password</label>
+            <input id="registerPassword" type="password" autocomplete="new-password" placeholder="At least 8 characters">
+            <label>Confirm password</label>
+            <input id="registerConfirm" type="password" autocomplete="new-password" placeholder="Repeat password">
+            <button class="primary-btn auth-submit" id="registerSubmit">Create account</button>
+        </div>
+
+        <div class="account-status" id="authStatus"></div>
+    </div>
+</div>
+
+<!-- Profile / account modal -->
+<div class="modal-backdrop" id="profileModal">
+    <div class="modal account-modal">
+        <button class="modal-close" data-close="profileModal">×</button>
+        <div class="modal-icon">◎</div>
+        <span class="eyebrow">PERSONAL ACCOUNT</span>
+        <h2>Your JARVIS profile</h2>
+        <p class="modal-description">Your account and conversations are stored in the JARVIS D1 database.</p>
+
+        <label>Name</label>
+        <input id="profileName" type="text" readonly>
+        <label>Email</label>
+        <input id="profileEmail" type="email" readonly>
+
+        <div class="modal-actions">
+            <button class="secondary-btn" id="clearLocalData">Clear local UI settings</button>
+            <button class="primary-btn" id="logoutBtn">Logout</button>
+        </div>
+        <div class="account-status" id="accountStatus"></div>
+    </div>
+</div>
+
+<!-- Settings modal -->
+<div class="modal-backdrop" id="settingsModal">
+    <div class="modal">
+        <button class="modal-close" data-close="settingsModal">×</button>
+        <span class="eyebrow">SYSTEM</span>
+        <h2>Settings</h2>
+
+        <div class="setting-row">
+            <div>
+                <strong>Save conversations</strong>
+                <small>Keep chats in this browser</small>
+            </div>
+            <label class="switch">
+                <input type="checkbox" id="saveChats" checked>
+                <span></span>
+            </label>
+        </div>
+
+        <div class="setting-row">
+            <div>
+                <strong>Auto-check ESP32</strong>
+                <small>Refresh device status periodically</small>
+            </div>
+            <label class="switch">
+                <input type="checkbox" id="autoDevice" checked>
+                <span></span>
+            </label>
+        </div>
+
+        <div class="setting-row">
+            <div>
+                <strong>Enter to send</strong>
+                <small>Shift + Enter creates a new line</small>
+            </div>
+            <label class="switch">
+                <input type="checkbox" id="enterSend" checked>
+                <span></span>
+            </label>
+        </div>
+    </div>
+</div>
+
+<script src="script.js"></script>
 </body>
 </html>
